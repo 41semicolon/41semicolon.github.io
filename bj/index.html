@@ -1,0 +1,339 @@
+<!doctype html>
+<meta charset="utf-8">
+<title></title>
+<body>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pixi.js/4.7.1/pixi.min.js"></script>
+<script>
+
+const { Application, loader, resources, Sprite } = PIXI;
+
+// globals
+const state = {
+  playing: false,
+  chip: 100,
+  deck: [],
+  cards: { 'player': [], 'dealer': [], },
+};
+
+// functions 
+let log, deal, clear, show, loop; // these functions will be defined in setup();
+
+const setup = (app) => {
+  // global function
+  gameloop = looper();
+  log = logger(app.stage);
+  const cardroot = new PIXI.Container();
+  app.stage.addChild(cardroot);
+  deal = dealGen(cardroot);
+  clear = clearer(cardroot);
+  show = shower(cardroot);
+
+  // set HUD
+  displayButton(app.stage, cardroot, gameloop);
+  displayChip(app.stage, gameloop);
+  displayWinner(app.stage, gameloop);
+  displayBet(app.stage, gameloop);
+
+  // start gameloop
+  app.ticker.add(gameloop.update);
+  log('Press NEW to start.');
+};
+
+const looper = () => {
+  const todo = {}; // TODO: use Array to preserve order. 
+  const add = (id, fn) => todo[id] = fn;
+  const update = (delta) => Object.values(todo).forEach(fn => fn());
+  return { update, add };
+};
+
+const shower = root => () => root.children.forEach(c => {c.visible = true; });
+
+const clearer = (root) => () => [...root.children].forEach(c => c.destroy());
+
+const logger = (root) => {
+  const container = new PIXI.Container();
+  const hist = [];
+  const display = new PIXI.Text('');
+  display.style = {fill: 'yellow', font: '14px Arial'};
+  container.addChild(display);
+  container.x = 5;
+  container.y = 100;
+  root.addChild(container);
+
+  return (msg) => {
+    hist.push(msg);
+    display.text = [...hist].reverse().slice(0, 18).join('\n');
+  };
+};
+
+function dealGen (root) {
+  return (target, visibility = true) => {
+    const val = state.deck.shift();
+    state.cards[target].push(val);
+    if (bust()) { onGamefinished(); }
+
+    const c = card(val);
+    if (target === 'player') {
+      c.x = (state.cards['player'].length - 1 )* 40 + 10;
+      c.y = 550;
+    } else {
+      c.x = - (state.cards['dealer'].length - 1 )* 40 + 200;
+      c.y = -100;
+    }
+    root.addChild(c);
+    c.visible = visibility;
+    return c;
+  };
+};
+
+const displayChip = (stage, loop) => {
+  const container = new PIXI.Container();
+  const chipLabel = new PIXI.Text(state.chip);
+  chipLabel.x = 280; 
+  chipLabel.y = 500;
+  chipLabel.style = {fill: 'yellow', font: '20px Arial'};
+  container.addChild(chipLabel);
+  stage.addChild(container);
+  loop.add('chip', () => chipLabel.text = `Chips: ${state.chip}`);
+};
+
+const displayWinner = (stage, loop) => {
+  const t = new PIXI.Text('win');
+  t.style = {fill: 'yellow', font: '36px Arial'};
+  t.x = 140;
+  t.y = 510;
+  t.visible = false;
+  stage.addChild(t);
+
+  loop.add('win', () => {
+    if (state.playing) {
+      t.visible = false;
+      return;
+    }
+    if (state.cards['player'].length === 0) { // first time
+      t.visible = false;
+      return;
+    }
+    const [p, d] = score();
+    t.text = p > d ? 'WIN' : p === d ? 'DRAW' : 'LOSE';
+    t.visible = true;
+  });
+};
+
+const displayBet = (stage, loop) => {
+  const cont = new PIXI.Container();
+  const t = new PIXI.Text('1');
+  const g = new PIXI.Graphics();
+  g.lineStyle(0);
+  g.beginFill(0xFFFF0B);
+  g.drawCircle(50, 15, 20);
+  g.endFill();
+  cont.addChild(g);
+  cont.addChild(t);
+  cont.visible = true;
+  stage.addChild(cont);
+
+  cont.x = 300;
+  cont.y = 350;
+  t.x = 45;
+  t.style = {fill: 'black', font: '20px Arial'};
+
+  loop.add('bet', () => cont.visible = state.playing);
+};
+
+const displayButton = (stage, cardroot, loop) => {
+  const ret = new PIXI.Container();
+
+  // for HIT
+  const hit = new PIXI.Graphics();
+  hit.lineStyle(0);
+  hit.beginFill(0xFFFF0B);
+  hit.drawCircle(50, 15, 40);
+  hit.endFill();
+  hit.interactive = true;
+  hit.buttonMode = true;
+  hit.on('pointerdown', () => onHit());
+  const hitLabel = new PIXI.Text('Hit');
+  hitLabel.x = 35; 
+  hitLabel.y = 0;
+  ret.addChild(hit);
+  ret.addChild(hitLabel);
+  // for STAND
+  const stand = new PIXI.Graphics();
+  stand.lineStyle(0);
+  stand.beginFill(0xFFFF0B);
+  stand.drawCircle(150, 15, 40);
+  stand.endFill();
+  stand.interactive = true;
+  stand.buttonMode = true;
+  stand.on('pointerdown', () => onGamefinished());
+  const standLabel = new PIXI.Text('Stand');
+  standLabel.x = 115; 
+  standLabel.y = 0;
+  ret.addChild(stand);
+  ret.addChild(standLabel);
+  // for NEW
+  const newgame = new PIXI.Graphics();
+  newgame.lineStyle(0);
+  newgame.beginFill(0xFFFF0B);
+  newgame.drawCircle(250, 15, 40);
+  newgame.endFill();
+  newgame.interactive = true;
+  newgame.buttonMode = true;
+  newgame.on('pointerdown', () => onNewGame());
+  const ngLabel = new PIXI.Text('NEW');
+  ngLabel.x = 215; 
+  ngLabel.y = 0;
+  ret.addChild(newgame);
+  ret.addChild(ngLabel);
+
+  ret.x = 10;
+  ret.y = 430;
+  stage.addChild(ret)
+
+  loop.add('hit', () => {
+    hit.visible = state.playing;
+    stand.visible = state.playing;
+    newgame.visible = !state.playing;
+  });
+};
+
+function card (num) {
+  const ret = new PIXI.Container();
+
+  const g1 = new PIXI.Graphics();
+  g1.lineStyle(4, 0x99CCFF, 1);
+  g1.beginFill(0xeeeeee);
+  g1.drawRoundedRect(0, 0, 150, 150, 10)
+  g1.endFill();
+
+  const label1 = new PIXI.Text(crepr(num));
+  label1.x = 5; 
+  label1.y = 3;
+  const label2 = new PIXI.Text(crepr(num));
+  label1.x = 118; 
+  label1.y = 125;
+
+  ret.addChild(g1);
+  ret.addChild(label1);
+  ret.addChild(label2);
+
+  return ret;
+};
+
+// game stuff
+const onNewGame = () =>{
+  if (state.playing) { return; }
+  state.playing = true;
+
+  log('start game');
+  state.deck = deck();
+  state.cards['player'] = [];
+  state.cards['dealer'] = [];
+  clear();
+  state.chip -= 1;
+  deal('dealer', true);
+  deal('dealer', false);
+  deal('player');
+  deal('player');
+  log(`your point ${handpoint(state.cards['player'])}`)
+};
+
+const onHit = () => {
+  if (!state.playing) { return; }
+  deal('player');
+};
+
+const onGamefinished = () => {
+  if (!state.playing) { return; }
+  state.playing = false;
+
+  // dealer action if not bust
+  if (score()[0] !== -1) {
+    while (true) {
+      const dscore = score()[1];
+      if (dscore === -1 || 16 < dscore) { break; }
+      deal('dealer');
+    }
+  }
+
+  // showdown
+  show();
+  const [pscore, dscore] = score();
+  const amount = (pscore > dscore ? 2 : 0);
+  state.chip += amount;
+
+  const p = pscore === -1 ? 'bust' : pscore;
+  const d = dscore === -1 ? 'bust' : dscore;
+  log(`finished. Player:${p}, Dealer:${d}`);
+};
+
+function crepr (num) {
+  let suit;
+  switch (num % 0b11) {
+    case 0: suit = '♥'; break;
+    case 1: suit = '♦'; break;
+    case 2: suit = '♣'; break;
+    case 3: suit = '♠'; break;
+  }
+  let rank = num >> 2;
+  switch (rank) {
+    case 0: rank = 'A'; break;
+    case 9: rank = 'T'; break;
+    case 10: rank = 'J'; break;
+    case 11: rank = 'Q'; break;
+    case 12: rank = 'K'; break;
+    default: rank = (num >> 2) + 1;
+  }
+  return `${rank}${suit}`;
+}
+
+function point (num) {
+  let rank = num >> 2;
+  if (rank === 0) { return [1, 11] };
+  return [Math.min(10, rank + 1)];
+}
+function handpoint (hand) {
+  if (hand.length === 0) return [0];
+  if (hand.length === 1) return point(hand[0]);
+  const headPoint = point(hand[0]);
+  const tailPoint = handpoint(hand.slice(1, hand.length));
+  const ret = [];
+  for (let h of headPoint) {
+    for(let t of tailPoint) {
+      ret.push(h + t);
+    }
+  }
+  return ret;
+};
+
+const score = () => {
+  const p =  handpoint(state.cards['player']).filter(x => x < 22).sort((x, y)=>x -y).reverse();
+  const pscore = p.length === 0 ? -1 : p[0];
+  const d =  handpoint(state.cards['dealer']).filter(x => x < 22).sort((x, y)=>x -y).reverse();
+  const dscore = d.length === 0 ? -1 : d[0];
+  return [pscore, dscore];
+};
+
+const bust = () => {
+  const [pscore, dscore] = score();
+  return (pscore === -1) || (dscore === -1);
+}
+
+// shuffle algolithm inside-out
+const deck = () => {
+  const result = Array(52);
+  for (let i = 0; i < 52; i++) {
+    const rand = Math.floor(Math.random() * (i + 1));
+    if (rand !== i) { result[i] = result[rand]; }
+    result[rand] = i;
+  }
+  return result;
+};
+
+// main
+const myapp = new Application({ width: 400, height: 600, backgroundColor: 0x444444 });
+document.body.appendChild(myapp.view);
+loader.load(()=>setup(myapp));
+</script>
+</body>
