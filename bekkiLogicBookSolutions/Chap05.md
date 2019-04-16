@@ -305,7 +305,7 @@ Case2[ζ≠ξで量化]: 存在量化子 ∃ζφの場合。示すべきは
 2) (∀x(Fx→Gx) ∧ ∃xFx∧Hx ) → ∃x(Gx∧Hx) 
 ≡ ∀x((Fx→Gx)∧∃y(Fy∧Hy)) → ∃x(Gx∧Hx)
 ≡ ∀x∃y((Fx→Gx)∧(Fy∧Hy)) → ∃z(Gz∧Gz)
-≡ ∃z∀x∃y(((Fx→Gx)∧Fy∧Hy) → Gz∧Hz)
+≡ ∀x∃y∃z(((Fx→Gx)∧Fy∧Hy) → Gz∧Hz)
 
 3) ∀x(Fx∧Gx) ↔ ∀xFx∧∀xGx
 ≡ ∀z(Fz∧Gz) ↔ ∀x∀y(Fx∧Gy)
