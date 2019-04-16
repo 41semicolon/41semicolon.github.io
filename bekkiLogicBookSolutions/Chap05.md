@@ -297,25 +297,26 @@ Case2[ζ≠ξで量化]: 存在量化子 ∃ζφの場合。示すべきは
 # 5.95: 冠頭標準形への変形
 
 ```
-1) 与式 
-≡ ∃x(F(x) ∨ ￢∀yF(y)) 
-≡ ∃x(F(x) ∨ ∃y￢F(y)) 
-≡ ∃x∃y(F(x)∨￢F(y))
+1) ∃xFx ⋁ ¬∀xFx 
+≡ ∃x(Fx ⋁ ¬∀yFy) 
+≡ ∃x(Fx ⋁ ∃y¬Fy) 
+≡ ∃x∃y(Fx⋁¬Fy)
 
-2) 与式 
+2) (∀x(Fx→Gx) ∧ ∃xFx∧Hx ) → ∃x(Gx∧Hx) 
 ≡ ∀x((Fx→Gx)∧∃y(Fy∧Hy)) → ∃x(Gx∧Hx)
-≡ ∀x∃y(Fx→Gx)∧(Fy∧Hy)) → ∃z(Gz∧Gz)
+≡ ∀x∃y((Fx→Gx)∧(Fy∧Hy)) → ∃z(Gz∧Gz)
 ≡ ∃z∀x∃y(((Fx→Gx)∧Fy∧Hy) → Gz∧Hz)
 
-3) 与式
-≡ ∀z(Fz∧Gz)↔∀x∀y(Fx∧Gy)
-≡ ∀x∀y∃z(Fz∧Gz → Fx∧Gy) ∧ ∃x∃y∀z(Fx∧Gy → Fz∧Gz)
-≡ ∀x∀y∃z(Fz∧Gz → Fx∧Gy ∧ ∃x∃y∀z(Fx∧Gy → Fz∧Gz))
-≡ ∀x∀y∃z∃u∃v∀w((Fz∧Gz→Fx∧Gy)∧(Fu∧Gv→Fw∧Gw))
+3) ∀x(Fx∧Gx) ↔ ∀xFx∧∀xGx
+≡ ∀z(Fz∧Gz) ↔ ∀x∀y(Fx∧Gy)
+≡ ∀x∀y∃z(Fz∧Gz → Fx∧Gy) ∧ ∀z∃x∃y(Fx∧Gy → Fz∧Gz)
+≡ ∀x∀y∃z(Fz∧Gz → Fx∧Gy ∧ ∀z∃x∃y(Fx∧Gy → Fz∧Gz))
+≡ ∀x∀y∃z∀w∃u∃v((Fz∧Gz→Fx∧Gy)∧(Fu∧Gv→Fw∧Gw))
 
-4) 与式 
-≡ ∀x∃y∀z(F(x,y,z)→∀x∃y∀zF(y,z,x))
-≡ ∀x∃y∀z∀u∃v∀w F(x,y,z)→F(v,w,u)
+4) ∃x∀y∃zFxyz → ∃x∀y∃zFyzx
+≡ ∃x∀y∃zFxyz → ∃u∀v∃wFvwu
+≡ ∀x∃y∀z(Fxyz → ∃u∀v∃wFvwu)
+≡ ∀x∃y∀z∃u∀v∃w(Fxyz→Fvwu)
 ```
 
 # 5.99 
