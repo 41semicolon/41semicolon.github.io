@@ -494,7 +494,7 @@ function dicOf(vs, n) {
 }
 
 function valueOf(n, dic, root) {
-  const valOf = (tree) => {
+  const valOf = tree => {
     if (tree.type === 'prime') return dic[tree.value];
     const [op, a1, a2] = tree;
     switch (op.value) {

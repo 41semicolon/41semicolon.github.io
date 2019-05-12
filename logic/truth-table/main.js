@@ -1,4 +1,4 @@
-import proplib from './proplib';
+import proplib from '../lib/proplib';
 
 const select = cid => document.getElementById(cid);
 const register = (s1, s2, s3) => {

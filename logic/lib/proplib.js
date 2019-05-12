@@ -26,7 +26,7 @@ function dicOf(vs, n) {
 }
 
 function valueOf(n, dic, root) {
-  const valOf = (tree) => {
+  const valOf = tree => {
     if (tree.type === 'prime') return dic[tree.value];
     const [op, a1, a2] = tree;
     switch (op.value) {
@@ -56,6 +56,15 @@ function truthTableOf(str) {
     result.push(x);
   }
   return [[...vs, 'X'], result];
+}
+
+// returns [[a,b], [0b11,0b10,0b01]] for a|b
+function cCNF(str) {
+  const [names, vals] = truthTableOf(str);
+  const result = vals
+    .filter(v => v & 1)
+    .map(v => v >> 1);
+  return [names.slice(0, -1), result];
 }
 
 module.exports = {
