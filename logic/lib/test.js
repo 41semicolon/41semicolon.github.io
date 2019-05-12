@@ -24,3 +24,25 @@ test('taut', () => {
     expect(X).toBeTruthy();
   });
 });
+
+test('cCNF', () => {
+  [
+    ['a', '(a)'],
+    ['a->b', '(a&b)|(!a&b)|(!a&!b)'],
+    ['!(a->b->c->d->x)', '(a&b&c&d&!x)'],
+  ].forEach(([f, ans]) => {
+    expect(A.cCNF(f)).toBe(ans);
+  });
+});
+
+test('ID', () => {
+  [
+    ['a', 'a10'],
+    ['a->b', 'ab1011'],
+    ['b&a', 'ab1000'],
+  ].forEach(([f, ans]) => {
+    expect(A.formulaID(f)).toBe(ans);
+  });
+});
+
+

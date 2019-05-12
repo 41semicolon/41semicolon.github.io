@@ -516,6 +516,7 @@ function valueOf(n, dic, root) {
 function truthTableOf(str) {
   const tree = parse(str);
   const vs = varOf(tree);
+  if (vs.length > 20) throw new Error('too big');
   const result = [];
   for (let n = (1 << vs.length) - 1; n >= 0; n -= 1) { // desc
     const dic = dicOf(vs, n);
@@ -526,12 +527,34 @@ function truthTableOf(str) {
   return [[...vs, 'X'], result];
 }
 
+// returns valid formula string
+function cCNF(str) {
+  const [names, vals] = truthTableOf(str);
+  return vals
+    .filter(v => v & 1)
+    .map(v => (v >> 1).toString(2).padStart(names.length - 1, '0'))
+    .map(s => '(' + [...s].map((b, i) => (b === '0' ? '!' : '') + names[i]).join('&')  + ')')
+    .join('|');
+}
+
+function formulaID(str) {
+  const [names, vals] = truthTableOf(str);
+  return names.slice(0, -1).join('') + vals.map(v => v & 1).join('');
+}
+
+function equivalent(str1, str2) {
+  return formulaID(str1) === formulaID(str2);
+}
+
 var proplib = {
   truthTableOf,
+  cCNF,
+  formulaID,
+  equivalent,
 };
 
 const select = cid => document.getElementById(cid);
-const register = (s1, s2, s3) => {
+const register = (s1, s2, s3, s4, s5, s6) => {
   select(s1).addEventListener('click', () => {
     try {
       const f = select(s2).value;
@@ -542,6 +565,14 @@ const register = (s1, s2, s3) => {
         s += '\n';
       });
       select(s3).value = s;
+      // s4
+      const istaut = values.every(v => v & 1);
+      const iscont = values.every(v => (v & 1) === 0);
+      select(s4).innerHTML = istaut ? 'tautology!' : iscont ? 'contradiction!' : '';
+      // s5
+      select(s5).value = proplib.cCNF(f);
+      // s6
+      select(s6).value = proplib.formulaID(f);
     } catch (e) {
       alert(e.message);
     }
@@ -549,6 +580,6 @@ const register = (s1, s2, s3) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  register('btn', 'formula', 'ttable');
-  register('btn2', 'formula2', 'ttable2');
+  register('btn', 'formula', 'ttable', 'flash', 'cnf', 'fid');
+  register('btn2', 'formula2', 'ttable2', 'flash2', 'cnf2', 'fid2');
 });

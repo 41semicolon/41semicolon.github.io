@@ -48,6 +48,7 @@ function valueOf(n, dic, root) {
 function truthTableOf(str) {
   const tree = parse(str);
   const vs = varOf(tree);
+  if (vs.length > 20) throw new Error('too big');
   const result = [];
   for (let n = (1 << vs.length) - 1; n >= 0; n -= 1) { // desc
     const dic = dicOf(vs, n);
@@ -58,15 +59,28 @@ function truthTableOf(str) {
   return [[...vs, 'X'], result];
 }
 
-// returns [[a,b], [0b11,0b10,0b01]] for a|b
+// returns valid formula string
 function cCNF(str) {
   const [names, vals] = truthTableOf(str);
-  const result = vals
+  return vals
     .filter(v => v & 1)
-    .map(v => v >> 1);
-  return [names.slice(0, -1), result];
+    .map(v => (v >> 1).toString(2).padStart(names.length - 1, '0'))
+    .map(s => '(' + [...s].map((b, i) => (b === '0' ? '!' : '') + names[i]).join('&')  + ')')
+    .join('|');
+}
+
+function formulaID(str) {
+  const [names, vals] = truthTableOf(str);
+  return names.slice(0, -1).join('') + vals.map(v => v & 1).join('');
+}
+
+function equivalent(str1, str2) {
+  return formulaID(str1) === formulaID(str2);
 }
 
 module.exports = {
   truthTableOf,
+  cCNF,
+  formulaID,
+  equivalent,
 };
