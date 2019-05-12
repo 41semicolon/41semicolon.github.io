@@ -472,23 +472,23 @@ var grammar = {
 function parse(str) {
   const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
   parser.feed(str);
-  if (parser.results.length !== 1) error('invalid formula.');
+  if (parser.results.length !== 1) throw Error('invalid formula.');
   return parser.results[0];
 }
 
-// with desc order(i.e. [r,q,p] which is comport for valuation.
 function varOf(root) {
   const rfn = (tree) => {
     if (tree.type === 'prime') return [tree.value];
     return tree.slice(1).reduce((a, x) => a.concat(rfn(x)), []);
   };
-  return [...new Set(rfn(root))].filter(c => !['T', 'F'].includes(c)).sort().reverse();
+  return [...new Set(rfn(root))].filter(c => !['T', 'F'].includes(c)).sort();
 }
 
 function dicOf(vs, n) {
-  const dic = { T: true, F: false };
+  const dic = { T: 1, F: 0 };
   vs.forEach((v, i) => {
-    dic[v] = (n & (1 << i)) ? true : false;
+    const j = vs.length - i - 1;
+    dic[v] = (n & (1 << j)) ? 1 : 0;
   });
   return dic;
 }
@@ -512,32 +512,35 @@ function valueOf(n, dic, root) {
   return valOf(root);
 }
 
+// returns [[a,b], [0b111, 0b100, 0b010, 0b000]] for a&b
 function truthTableOf(str) {
   const tree = parse(str);
   const vs = varOf(tree);
   const result = [];
-  result.push(['X', ...vs]);
-  for (let n = (1 << vs.length) - 1; n >= 0; n -= 1) {
+  for (let n = (1 << vs.length) - 1; n >= 0; n -= 1) { // desc
     const dic = dicOf(vs, n);
-    const val = valueOf(n, dic, tree) ? '1' : '0';
-    const varr = vs.map(v => dic[v] ? '1' : '0');
-    result.push([val, ...varr]);
+    const v = (n & ((1 << vs.length) - 1));
+    const x = (v << 1) | valueOf(n, dic, tree);
+    result.push(x);
   }
-  result.forEach(line => line.reverse()); // for human eye
-  return result;
+  return [[...vs, 'X'], result];
 }
 
-// UI stuff
-const select = cid => document.getElementById(cid);
-const error = msg => alert(msg);
+var proplib = {
+  truthTableOf,
+};
 
+const select = cid => document.getElementById(cid);
 const register = (s1, s2, s3) => {
   select(s1).addEventListener('click', () => {
     try {
       const f = select(s2).value;
-      const s = truthTableOf(f)
-        .map(arr => arr.join(' '))
-        .join('\n');
+      const [names, values] = proplib.truthTableOf(f);
+      let s = names.join(' ') + '\n';
+      values.forEach(v => {
+        s += [...v.toString(2).padStart(names.length, '0')].join(' ');
+        s += '\n';
+      });
       select(s3).value = s;
     } catch (e) {
       alert(e.message);
