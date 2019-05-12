@@ -4,15 +4,17 @@ import grammar from './grammar';
 function parse(str) {
   const parser = new N.Parser(N.Grammar.fromCompiled(grammar));
   parser.feed(str);
+  if (parser.results.length !== 1) error('invalid formula.')
   return parser.results[0];
 }
 
+// with desc order(i.e. [r,q,p] which is comport for valuation.
 function varOf(root) {
   const rfn = (tree) => {
     if (tree.type === 'prime') return [tree.value];
     return tree.slice(1).reduce((a, x) => a.concat(rfn(x)), []);
   };
-  return [...new Set(rfn(root))].sort().reverse();
+  return [...new Set(rfn(root))].filter(c => !['T', 'F'].includes(c)).sort().reverse();
 }
 
 function dicOf(vs, n) {
@@ -30,7 +32,9 @@ function valueOf(n, dic, root) {
     switch (op.value) {
       case 'not': return !valOf(a1);
       case 'and': return valOf(a1) && valOf(a2);
+      case 'nand': return !(valOf(a1) && valOf(a2));
       case 'or': return valOf(a1) || valOf(a2);
+      case 'nor': return !(valOf(a1) || valOf(a2));
       case 'xor': return (valOf(a1) && !valOf(a2)) || (!valOf(a1) && valOf(a2));
       case 'then': return !valOf(a1) || valOf(a2);
       case 'equiv': return (valOf(a1) && valOf(a2)) || (!valOf(a1) && !valOf(a2));
@@ -41,7 +45,7 @@ function valueOf(n, dic, root) {
 }
 
 function truthTableOf(str) {
-  const tree = parse(str)
+  const tree = parse(str);
   const vs = varOf(tree);
   const result = [];
   result.push(['X', ...vs]);
@@ -55,14 +59,13 @@ function truthTableOf(str) {
   return result;
 }
 
-
 // UI stuff
 const select = cid => document.getElementById(cid);
 const error = msg => alert(msg);
 
 const register = (s1, s2, s3) => {
   select(s1).addEventListener('click', () => {
-    try{
+    try {
       const f = select(s2).value;
       const s = truthTableOf(f)
         .map(arr => arr.join(' '))
@@ -72,7 +75,7 @@ const register = (s1, s2, s3) => {
       alert(e.message);
     }
   });
-}
+};
 
 document.addEventListener('DOMContentLoaded', () => {
   register('btn', 'formula', 'ttable');

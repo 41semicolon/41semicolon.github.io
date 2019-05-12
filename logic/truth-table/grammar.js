@@ -7,14 +7,14 @@ const toObj = str => {
   switch (str) {
     case '!': return { type: 'connective', value: 'not' };
     case '&': return { type: 'connective', value: 'and' };
+    case '@': return { type: 'connective', value: 'nand' };
     case '|': return { type: 'connective', value: 'or' };
     case '^': return { type: 'connective', value: 'xor' };
+    case '#': return { type: 'connective', value: 'nor' };
     case '->': return { type: 'connective', value: 'then' };
     case '==': return { type: 'connective', value: 'equiv' };
-    default: // formula
-      if (/^[a-z]$/.exec(str)) {
-        return { type: 'prime', value: str };
-      }
+    default:
+      if (/^[a-zTF]$/.exec(str)) return { type: 'prime', value: str };
       throw Error('invalid prime name');
   }
 };
@@ -33,10 +33,14 @@ var grammar = {
     {"name": "equ", "symbols": ["imp"], "postprocess": id},
     {"name": "imp", "symbols": ["xj", "then", "imp"], "postprocess": ([a1,op,a2]) => [op, a1, a2]},
     {"name": "imp", "symbols": ["xj"], "postprocess": id},
-    {"name": "xj", "symbols": ["xj", "xor", "disj"], "postprocess": ([a1,op,a2]) => [op, a1, a2]},
-    {"name": "xj", "symbols": ["disj"], "postprocess": id},
-    {"name": "disj", "symbols": ["disj", "or", "conj"], "postprocess": ([a1,op,a2]) => [op, a1, a2]},
-    {"name": "disj", "symbols": ["conj"], "postprocess": id},
+    {"name": "xj", "symbols": ["xj", "xor", "norj"], "postprocess": ([a1,op,a2]) => [op, a1, a2]},
+    {"name": "xj", "symbols": ["norj"], "postprocess": id},
+    {"name": "norj", "symbols": ["norj", "nor", "disj"], "postprocess": ([a1,op,a2]) => [op, a1, a2]},
+    {"name": "norj", "symbols": ["disj"], "postprocess": id},
+    {"name": "disj", "symbols": ["disj", "or", "nanj"], "postprocess": ([a1,op,a2]) => [op, a1, a2]},
+    {"name": "disj", "symbols": ["nanj"], "postprocess": id},
+    {"name": "nanj", "symbols": ["nanj", "nand", "conj"], "postprocess": ([a1,op,a2]) => [op, a1, a2]},
+    {"name": "nanj", "symbols": ["conj"], "postprocess": id},
     {"name": "conj", "symbols": ["conj", "and", "lit"], "postprocess": ([a1,op,a2]) => [op, a1, a2]},
     {"name": "conj", "symbols": ["lit"], "postprocess": id},
     {"name": "lit", "symbols": ["not", "lit"], "postprocess": ([op,a]) => [op, a]},
@@ -46,7 +50,9 @@ var grammar = {
     {"name": "pf", "symbols": [{"literal":"("}, "formula", {"literal":")"}], "postprocess": d => d[1]},
     {"name": "not", "symbols": [{"literal":"!"}, "_"], "postprocess": ([op]) => toObj(op)},
     {"name": "and", "symbols": ["_", {"literal":"&"}, "_"], "postprocess": ([,op]) => toObj(op)},
+    {"name": "nand", "symbols": ["_", {"literal":"@"}, "_"], "postprocess": ([,op]) => toObj(op)},
     {"name": "or", "symbols": ["_", {"literal":"|"}, "_"], "postprocess": ([,op]) => toObj(op)},
+    {"name": "nor", "symbols": ["_", {"literal":"#"}, "_"], "postprocess": ([,op]) => toObj(op)},
     {"name": "xor", "symbols": ["_", {"literal":"^"}, "_"], "postprocess": ([,op]) => toObj(op)},
     {"name": "then$string$1", "symbols": [{"literal":"-"}, {"literal":">"}], "postprocess": function joiner(d) {return d.join('');}},
     {"name": "then", "symbols": ["_", "then$string$1", "_"], "postprocess": ([,op]) => toObj(op)},
