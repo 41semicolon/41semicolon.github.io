@@ -1,7 +1,7 @@
 import proplib from '../lib/proplib';
 
 const select = cid => document.getElementById(cid);
-const register = (s1, s2, s3, s4, s5, s6) => {
+const register = (s1, s2, s3, s4, s5, s6, s7) => {
   select(s1).addEventListener('click', () => {
     try {
       const f = select(s2).value;
@@ -17,9 +17,11 @@ const register = (s1, s2, s3, s4, s5, s6) => {
       const iscont = values.every(v => (v & 1) === 0);
       select(s4).innerHTML = istaut ? 'tautology!' : iscont ? 'contradiction!' : '';
       // s5
-      select(s5).value = proplib.cCNF(f)
+      select(s5).value = proplib.CNF(f)
       // s6
-      select(s6).value = proplib.formulaID(f)
+      select(s6).value = proplib.formulaSID(f)
+      // s7
+      select(s7).value = proplib.cCNF(f)
     } catch (e) {
       alert(e.message);
     }
@@ -27,6 +29,6 @@ const register = (s1, s2, s3, s4, s5, s6) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  register('btn', 'formula', 'ttable', 'flash', 'cnf', 'fid');
-  register('btn2', 'formula2', 'ttable2', 'flash2', 'cnf2', 'fid2');
+  register('btn', 'formula', 'ttable', 'flash', 'cnf', 'fid', 'ccnf');
+  register('btn2', 'formula2', 'ttable2', 'flash2', 'cnf2', 'fid2', 'ccnf2');
 });

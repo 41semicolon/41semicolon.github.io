@@ -1,5 +1,6 @@
 const nearley =  require('nearley');
-const grammar = require( './propgrammar');
+const grammar = require('./propgrammar');
+const C = require('./common.js');
 
 function parse(str) {
   const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
@@ -7,6 +8,26 @@ function parse(str) {
   if (parser.results.length !== 1) throw Error('invalid formula.');
   return parser.results[0];
 }
+
+function unparse(tree) { // use reprProp() for human eyes.
+  if (tree.type === 'prime') return tree.value;
+  const [op, ...args] = tree;
+  switch(op.value) {
+    case 'not':
+      return '!(' + unparse(args[0]) + ')';
+    case 'and':
+    case 'nand':
+    case 'or':
+    case 'nor':
+    case 'xor':
+    case 'then':
+    case 'equiv':
+      return args.map(a => `(${unparse(a)})`).join(C.SYMBOL[op.value]);
+  }
+  throw Error('oops');
+}
+
+const reprProp = x => C.repr(x, y=>y);
 
 function varOf(root) {
   const rfn = (tree) => {
@@ -69,18 +90,38 @@ function cCNF(str) {
     .join('|');
 }
 
-function formulaID(str) {
+function formulaSID(str) { // SID: semantic ID
   const [names, vals] = truthTableOf(str);
   return names.slice(0, -1).join('') + vals.map(v => v & 1).join('');
 }
 
-function equivalent(str1, str2) {
-  return formulaID(str1) === formulaID(str2);
+function sortedCNF (str) { // for human eye
+  // comparator
+  const cmp = (lx, ly) => {
+    const x = (lx.type === 'prime') ? lx.value : lx[1].value;
+    const y = (ly.type === 'prime') ? ly.value : ly[1].value;
+    return (x < y) ? -1 : 1;
+  };
+  const cnf = C.flatAO(C.toCNF(parse(str)));
+  // 1-Clause
+  if (C.isClause(cnf)){
+    if(C.isLiteral(cnf)) return cnf;
+    return [cnf[0], ...cnf.slice(1).sort(cmp)];
+  }
+  // N-Clause
+  return [cnf[0], ...cnf.slice(1).map(cl => {
+    if(C.isLiteral(cl)) return cl;
+    return [cl[0], ...cl.slice(1).sort(cmp)];
+  })];
 }
 
 module.exports = {
+  parse,
+  unparse,
+  reprProp,
   truthTableOf,
   cCNF,
-  formulaID,
-  equivalent,
+  formulaSID,
+  sortedCNF,
+  CNF: x => reprProp(sortedCNF(x)),
 };

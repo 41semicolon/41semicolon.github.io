@@ -399,7 +399,7 @@ var nearley = createCommonjsModule(function (module) {
 }));
 });
 
-var grammar = createCommonjsModule(function (module) {
+var propgrammar = createCommonjsModule(function (module) {
 // Generated automatically by nearley, version 2.16.0
 // http://github.com/Hardmath123/nearley
 (function () {
@@ -469,12 +469,183 @@ var grammar = {
 })();
 });
 
+const SYMBOL = {
+  not: '!', and: '&', nand: '@',
+  or: '|', nor: '#', xor: '^',
+  then: '->', equiv: '==',
+};
+
+const nodeOf = kw => ({ type: 'connective', value: kw });
+const isPrime = obj => obj.type === 'prime';
+const isLiteral = obj => {
+  if (isPrime(obj)) return true;
+  if (obj[0].value === 'not' && isPrime(obj[1])) return true;
+  return false;
+};
+const isClause = obj => { // disjunctive clause. i.e. p|!q|r
+  if (isLiteral(obj)) return true;
+  const [op, ...args] = obj;
+  switch (op.value) {
+    case 'or': return args.every(isClause);
+    default: return false;
+  }
+};
+
+// rewriting stuff for converting CNF
+function nao(tree) {
+  if (isLiteral(tree)) return tree;
+  const [op, ...args] = tree;
+  switch (op.value) {
+    case 'not':
+      return [op, nao(args[0])];
+    case 'and':
+    case 'or':
+      return [op, ...args.map(nao)];
+		case 'nand':
+			return [op, [nodeOf('not'), [nodeOf('and'), ...args.map(nao)]]];
+		case 'nor':
+			return [op, [nodeOf('not'), [nodeOf('or'), ...args.map(nao)]]];
+		case 'xor':
+      if (args.length !== 2) throw Error('oops');
+      return [nodeOf('or'), 
+        [nodeOf('and'), nao(args[0]), [nodeOf('not'), nao(args[1])]],
+        [nodeOf('and'), [nodeOf('not'), nao(args[0])], nao(args[1])]];
+    case 'then':
+      if (args.length !== 2) throw Error('oops');
+      return [nodeOf('or'),
+        [nodeOf('not'), nao(args[0])],
+        nao(args[1])];
+    case 'equiv':
+      if (args.length !== 2) throw Error('oops');
+      return nao([nodeOf('and'),
+        [nodeOf('then'), args[0], args[1]],
+        [nodeOf('then'), args[1], args[0]]]);
+  }
+  throw Error('should not reach here');
+}
+
+// rewrite:
+function lit(_tree) {
+  const rfn = tree => {
+    if (isPrime(tree)) return tree;
+    const [op, ...args] = tree;
+    // and or
+    if (['and', 'or'].includes(op.value)) {
+      return [op, ...args.map(lit)];
+    }
+    // not
+    const a = args[0];
+    if (isPrime(a)) return tree; // negative literal
+    const [opp, ...aargs] = a;
+    switch (opp.value) {
+      case 'not': return lit(aargs[0]); // !!a to a
+      case 'and': // !(a&b) to !a|!b
+        return [nodeOf('or'), ...aargs.map(x => lit([nodeOf('not'), x]))];
+      case 'or': // !(a|b) to !a&!b
+        return [nodeOf('and'), ...aargs.map(x => lit([nodeOf('not'), x]))];
+    }
+    throw Error('should not reach here');
+  };
+  const tree = nao(_tree);
+  return rfn(tree);
+}
+
+function cnf(_tree){
+  const rfn = tree => {
+    if (isClause(tree)) return tree;
+    const [op, ...args] = tree;
+    if (op.value === 'and') {
+        return [op, ...args.map(cnf)];
+    } else if (op.value === 'or') {
+      // (|aXbc...)->(|a(&z1 z2 ...)bc...)->(& (|z1abc...) (|z2abc...)...)
+      const X = args.find(x => !isClause(x)); // should always success
+      const Ys = args.filter(x => x !== X);
+      const [oop, ...Zs] = rfn(X);
+      if(oop.value !== 'and') throw Error(`oops ${oop.value}`);
+      return [nodeOf('and'), ...Zs.map(z => cnf([nodeOf('or'), z, ...Ys]))];
+    }
+    throw Error('oops');
+  };
+	const tree = lit(_tree);
+	return rfn(tree);
+}
+
+function flatAO(tree) {
+  if (isPrime(tree)) return tree;
+  const [op, ...args] = tree;
+  if (op.value !== 'and' && op.value  !== 'or') return [op, ...args.map(flatAO)];
+  // case for AND/OR
+  const result = [];
+  const xs = args.map(flatAO);
+  for (const x of xs) {
+    if(isPrime(x)) {
+      result.push(x);
+    } else if (x[0].value !== op.value) {
+      result.push(x);
+    } else {
+      x.slice(1).forEach(y => result.push(y));
+    }
+  }
+  return [op, ...result];
+}
+
+const repr = (tree, prepr= x=> x) => {
+  const rfn = obj => {
+    if (isPrime(obj)) return prepr(obj.value);
+    const [op, ...args] = obj;
+		// !(!(f)) -> !!(f)
+    if (op.value === 'not') {
+      const A = args[0];
+      if (isLiteral(A)) return '!' + repr(A);
+      return '!(' + repr(A) + ')';
+    } else { // n-ary connectives (and or then equiv)
+      const pstr = x => isLiteral(x) ? repr(x) : `(${repr(x)})`;
+      const result = args.map(pstr).join(SYMBOL[op.value]);
+      return `(${result})`;
+    }
+  };
+  const result = rfn(flatAO(tree));
+	// trim outermost paren, if exists.
+  return result[0] === '(' ? result.slice(1, result.length - 1) : result;
+};
+
+var common = {
+	SYMBOL,
+  nao,
+  lit,
+  toCNF: cnf,
+	repr,
+  isLiteral,
+  isClause,
+  flatAO,
+};
+
 function parse(str) {
-  const parser = new nearley.Parser(nearley.Grammar.fromCompiled(grammar));
+  const parser = new nearley.Parser(nearley.Grammar.fromCompiled(propgrammar));
   parser.feed(str);
   if (parser.results.length !== 1) throw Error('invalid formula.');
   return parser.results[0];
 }
+
+function unparse(tree) { // use reprProp() for human eyes.
+  if (tree.type === 'prime') return tree.value;
+  const [op, ...args] = tree;
+  switch(op.value) {
+    case 'not':
+      return '!(' + unparse(args[0]) + ')';
+    case 'and':
+    case 'nand':
+    case 'or':
+    case 'nor':
+    case 'xor':
+    case 'then':
+    case 'equiv':
+      return args.map(a => `(${unparse(a)})`).join(common.SYMBOL[op.value]);
+  }
+  throw Error('oops');
+}
+
+const reprProp = x => common.repr(x, y=>y);
 
 function varOf(root) {
   const rfn = (tree) => {
@@ -537,24 +708,44 @@ function cCNF(str) {
     .join('|');
 }
 
-function formulaID(str) {
+function formulaSID(str) { // SID: semantic ID
   const [names, vals] = truthTableOf(str);
   return names.slice(0, -1).join('') + vals.map(v => v & 1).join('');
 }
 
-function equivalent(str1, str2) {
-  return formulaID(str1) === formulaID(str2);
+function sortedCNF (str) { // for human eye
+  // comparator
+  const cmp = (lx, ly) => {
+    const x = (lx.type === 'prime') ? lx.value : lx[1].value;
+    const y = (ly.type === 'prime') ? ly.value : ly[1].value;
+    return (x < y) ? -1 : 1;
+  };
+  const cnf = common.flatAO(common.toCNF(parse(str)));
+  // 1-Clause
+  if (common.isClause(cnf)){
+    if(common.isLiteral(cnf)) return cnf;
+    return [cnf[0], ...cnf.slice(1).sort(cmp)];
+  }
+  // N-Clause
+  return [cnf[0], ...cnf.slice(1).map(cl => {
+    if(common.isLiteral(cl)) return cl;
+    return [cl[0], ...cl.slice(1).sort(cmp)];
+  })];
 }
 
 var proplib = {
+  parse,
+  unparse,
+  reprProp,
   truthTableOf,
   cCNF,
-  formulaID,
-  equivalent,
+  formulaSID,
+  sortedCNF,
+  CNF: x => reprProp(sortedCNF(x)),
 };
 
 const select = cid => document.getElementById(cid);
-const register = (s1, s2, s3, s4, s5, s6) => {
+const register = (s1, s2, s3, s4, s5, s6, s7) => {
   select(s1).addEventListener('click', () => {
     try {
       const f = select(s2).value;
@@ -570,9 +761,11 @@ const register = (s1, s2, s3, s4, s5, s6) => {
       const iscont = values.every(v => (v & 1) === 0);
       select(s4).innerHTML = istaut ? 'tautology!' : iscont ? 'contradiction!' : '';
       // s5
-      select(s5).value = proplib.cCNF(f);
+      select(s5).value = proplib.CNF(f);
       // s6
-      select(s6).value = proplib.formulaID(f);
+      select(s6).value = proplib.formulaSID(f);
+      // s7
+      select(s7).value = proplib.cCNF(f);
     } catch (e) {
       alert(e.message);
     }
@@ -580,6 +773,6 @@ const register = (s1, s2, s3, s4, s5, s6) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  register('btn', 'formula', 'ttable', 'flash', 'cnf', 'fid');
-  register('btn2', 'formula2', 'ttable2', 'flash2', 'cnf2', 'fid2');
+  register('btn', 'formula', 'ttable', 'flash', 'cnf', 'fid', 'ccnf');
+  register('btn2', 'formula2', 'ttable2', 'flash2', 'cnf2', 'fid2', 'ccnf2');
 });
