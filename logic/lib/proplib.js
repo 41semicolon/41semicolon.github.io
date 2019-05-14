@@ -81,13 +81,22 @@ function truthTableOf(str) {
 }
 
 // returns valid formula string
-function cCNF(str) {
+function cDNF(str) {
   const [names, vals] = truthTableOf(str);
   return vals
     .filter(v => v & 1)
     .map(v => (v >> 1).toString(2).padStart(names.length - 1, '0'))
     .map(s => '(' + [...s].map((b, i) => (b === '0' ? '!' : '') + names[i]).join('&')  + ')')
     .join('|');
+}
+
+function cCNF(str) {
+  const [names, vals] = truthTableOf(str);
+  return vals
+    .filter(v => (v & 1) === 0)
+    .map(v => (v >> 1).toString(2).padStart(names.length - 1, '0'))
+    .map(s => '(' + [...s].map((b, i) => (b === '1' ? '!' : '') + names[i]).join('|')  + ')')
+    .join('&');
 }
 
 function formulaSID(str) { // SID: semantic ID
@@ -102,14 +111,14 @@ function sortedCNF (str) { // for human eye
     const y = (ly.type === 'prime') ? ly.value : ly[1].value;
     return (x < y) ? -1 : 1;
   };
-  const cnf = C.flatAO(C.toCNF(parse(str)));
+  const dnf = C.flatAO(C.toCNF(parse(str)));
   // 1-Clause
-  if (C.isClause(cnf)){
-    if(C.isLiteral(cnf)) return cnf;
-    return [cnf[0], ...cnf.slice(1).sort(cmp)];
+  if (C.isClause(dnf)){
+    if(C.isLiteral(dnf)) return dnf;
+    return [dnf[0], ...dnf.slice(1).sort(cmp)];
   }
   // N-Clause
-  return [cnf[0], ...cnf.slice(1).map(cl => {
+  return [dnf[0], ...dnf.slice(1).map(cl => {
     if(C.isLiteral(cl)) return cl;
     return [cl[0], ...cl.slice(1).sort(cmp)];
   })];
@@ -120,6 +129,7 @@ module.exports = {
   unparse,
   reprProp,
   truthTableOf,
+  cDNF,
   cCNF,
   formulaSID,
   sortedCNF,

@@ -699,13 +699,22 @@ function truthTableOf(str) {
 }
 
 // returns valid formula string
-function cCNF(str) {
+function cDNF(str) {
   const [names, vals] = truthTableOf(str);
   return vals
     .filter(v => v & 1)
     .map(v => (v >> 1).toString(2).padStart(names.length - 1, '0'))
     .map(s => '(' + [...s].map((b, i) => (b === '0' ? '!' : '') + names[i]).join('&')  + ')')
     .join('|');
+}
+
+function cCNF(str) {
+  const [names, vals] = truthTableOf(str);
+  return vals
+    .filter(v => (v & 1) === 0)
+    .map(v => (v >> 1).toString(2).padStart(names.length - 1, '0'))
+    .map(s => '(' + [...s].map((b, i) => (b === '1' ? '!' : '') + names[i]).join('|')  + ')')
+    .join('&');
 }
 
 function formulaSID(str) { // SID: semantic ID
@@ -720,14 +729,14 @@ function sortedCNF (str) { // for human eye
     const y = (ly.type === 'prime') ? ly.value : ly[1].value;
     return (x < y) ? -1 : 1;
   };
-  const cnf = common.flatAO(common.toCNF(parse(str)));
+  const dnf = common.flatAO(common.toCNF(parse(str)));
   // 1-Clause
-  if (common.isClause(cnf)){
-    if(common.isLiteral(cnf)) return cnf;
-    return [cnf[0], ...cnf.slice(1).sort(cmp)];
+  if (common.isClause(dnf)){
+    if(common.isLiteral(dnf)) return dnf;
+    return [dnf[0], ...dnf.slice(1).sort(cmp)];
   }
   // N-Clause
-  return [cnf[0], ...cnf.slice(1).map(cl => {
+  return [dnf[0], ...dnf.slice(1).map(cl => {
     if(common.isLiteral(cl)) return cl;
     return [cl[0], ...cl.slice(1).sort(cmp)];
   })];
@@ -738,6 +747,7 @@ var proplib = {
   unparse,
   reprProp,
   truthTableOf,
+  cDNF,
   cCNF,
   formulaSID,
   sortedCNF,
@@ -745,9 +755,10 @@ var proplib = {
 };
 
 const select = cid => document.getElementById(cid);
-const register = (s1, s2, s3, s4, s5, s6, s7) => {
+const register = (s1, s2, s3, s4, s5, s6, s7, s8) => {
   select(s1).addEventListener('click', () => {
     try {
+      // s2: formula, s3: table
       const f = select(s2).value;
       const [names, values] = proplib.truthTableOf(f);
       let s = names.join(' ') + '\n';
@@ -756,16 +767,17 @@ const register = (s1, s2, s3, s4, s5, s6, s7) => {
         s += '\n';
       });
       select(s3).value = s;
-      // s4
+      // s4: flash
       const istaut = values.every(v => v & 1);
       const iscont = values.every(v => (v & 1) === 0);
       select(s4).innerHTML = istaut ? 'tautology!' : iscont ? 'contradiction!' : '';
-      // s5
+      // s5: CNF
       select(s5).value = proplib.CNF(f);
-      // s6
-      select(s6).value = proplib.formulaSID(f);
-      // s7
-      select(s7).value = proplib.cCNF(f);
+      // s6, s7: canonicalCNF/CNF
+      select(s6).value = proplib.cCNF(f);
+      select(s7).value = proplib.cDNF(f);
+      // s8
+      select(s8).value = proplib.formulaSID(f);
     } catch (e) {
       alert(e.message);
     }
@@ -773,6 +785,6 @@ const register = (s1, s2, s3, s4, s5, s6, s7) => {
 };
 
 document.addEventListener('DOMContentLoaded', () => {
-  register('btn', 'formula', 'ttable', 'flash', 'cnf', 'fid', 'ccnf');
-  register('btn2', 'formula2', 'ttable2', 'flash2', 'cnf2', 'fid2', 'ccnf2');
+  register('btn', 'formula', 'ttable', 'flash', 'cnf', 'ccnf', 'cdnf', 'fid');
+  register('btn2', 'formula2', 'ttable2', 'flash2', 'cnf2', 'ccnf2', 'cdnf2', 'fid2');
 });

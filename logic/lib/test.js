@@ -53,13 +53,15 @@ test('make semantic ID', () => {
   });
 });
 
-test('make canonical CNF', () => {
+test('make canonical DNF/CNF', () => {
   [
-    ['a', '(a)'],
-    ['a->b', '(a&b)|(!a&b)|(!a&!b)'],
-    ['!(a->b->c->d->x)', '(a&b&c&d&!x)'],
-  ].forEach(([f, ans]) => {
-    expect(A.cCNF(f)).toBe(ans);
+    ['a', '(a)', '(a)'],
+    ['a->b', '(a&b)|(!a&b)|(!a&!b)', ('(!a|b)')],
+    ['a==b', '(a&b)|(!a&!b)', '(!a|b)&(a|!b)'],
+    ['a->b->c->d->x', null, '(!a|!b|!c|!d|x)'],
+  ].forEach(([f, ans1, ans2]) => {
+    if (ans1) expect(A.cDNF(f)).toBe(ans1);
+    if (ans2) expect(A.cCNF(f)).toBe(ans2);
   });
 });
 
@@ -73,8 +75,6 @@ test('sortedCNF', () => {
     expect(A.reprProp(A.sortedCNF(f))).toBe(ans);
   });
 });
-
-
 
 test('rewrite/nao', () => {
   [
