@@ -31,9 +31,9 @@ function nao(tree) {
     case 'or':
       return [op, ...args.map(nao)];
 		case 'nand':
-			return [op, [nodeOf('not'), [nodeOf('and'), ...args.map(nao)]]];
+			return [nodeOf('not'), [nodeOf('and'), ...args.map(nao)]];
 		case 'nor':
-			return [op, [nodeOf('not'), [nodeOf('or'), ...args.map(nao)]]];
+			return [nodeOf('not'), [nodeOf('or'), ...args.map(nao)]];
 		case 'xor':
       if (args.length !== 2) throw Error('oops');
       return [nodeOf('or'), 
