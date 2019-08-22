@@ -19,9 +19,9 @@
   "homepage": "https://github.com/41semicolon/41semicolon.github.io#readme",
   "devDependencies": {
     "eslint": "^5.16.0",
-    "jest": "^24.8.0",
-    "nearley": "^2.16.0",
-    "rollup": "^1.11.3",
+    "jest": "^24.9.0",
+    "nearley": "^2.18.0",
+    "rollup": "^1.20.0",
     "rollup-plugin-commonjs": "^9.3.4",
     "rollup-plugin-node-resolve": "^4.2.4"
   }
